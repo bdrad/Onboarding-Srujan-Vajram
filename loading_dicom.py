@@ -11,18 +11,13 @@ import os
 import numpy as np
 import pandas as pd
 from skimage.transform import resize
+from matplotlib import pyplot as plt
+from math import sqrt
 
 description = pd.read_csv("Mass-Training-Description.csv") 
 
-# Look into using JSON files. 
-# 1,2 = FALSe. 3,4 = TRUE for breast density. 
-# Dense breasts have slightly higher probability of breast cancer. 
-# Try to load the DICOM files sepeartely and review the images. 
-# Make sure to save the new dimension sizes prior to saving it 
-# Ger a dicom viewer 
-
 # =========================================================================== #
-def dicom_resize(path, dimension) -> np.ndarray:
+def dicom_resize(path, dimension, savedir) -> int:
     
     # Holds a reference to the directory that stores the DICOM files of interest
     PathDicom = path
@@ -41,13 +36,14 @@ def dicom_resize(path, dimension) -> np.ndarray:
     RefD = pydicom.read_file(list_dicom[1])
     
     # Set the new dimensions 
-    IMG_PX_SIZE = dimension
+    IMG_SIZE = dimension
+    TARGET_PX_AREA = dimension*dimension
     
     # Set new dimensions 
-    newDims = (IMG_PX_SIZE, IMG_PX_SIZE, len(list_dicom))
+    #newDims = (IMG_SIZE, IMG_SIZE, len(list_dicom))
     
     # Initialize an empty array of zeros based on new dimensions 
-    ArrayDicom = np.zeros(newDims, dtype=RefD.pixel_array.dtype)
+    # ArrayDicom = np.zeros(newDims, dtype=RefD.pixel_array.dtype)
     
     # -------------------------------------- # 
     # Read each dicom file 
@@ -55,10 +51,38 @@ def dicom_resize(path, dimension) -> np.ndarray:
     for file in list_dicom:
         
         ds = pydicom.read_file(file)
-        data = ds.pixel_array
         
-        resized_img = resize(data, (IMG_PX_SIZE, IMG_PX_SIZE), anti_aliasing=True)
-        ArrayDicom[:, :, list_dicom.index(file)] = resized_img
+        # Grab the rows and columns
+        rows = ds.Rows
+        cols = ds.Columns
+        
+        # Calculate a scale factor that can be multiplied to each dimension
+        # of the original DICOM. Our goal is to recale the images as close to 
+        # the target pixel area as possible without modifying Aspect Ratio. 
+        scale_factor = sqrt( TARGET_PX_AREA / float(rows*cols) )
+        
+        # Calculate the new dimensions based on scale factor
+        newRows = int(np.floor(rows * scale_factor))
+        newCols = int(np.floor(cols * scale_factor))
+                
+        # Extract the relevant pixel data from DICOM
+        image = ds.pixel_array
+        resized_image = resize(image, (newRows, newCols), anti_aliasing=True)
+        
+        # Plot the resized image
+        plt.imshow(resized_image)
+        plt.show()
+        
+        # Add a new dimension to the image
+        resized_image = resized_image[:,:, np.newaxis]
+        
+        # Add the breast density information to create a numpyZ file
+        resized_image[:,:,-1] = description.breast_density[i]
+        
+        # Saves the numpy array to specific folder in directory 
+        np.save( os.path.join(savedir, ds.PatientID), resized_image)
+        
+        
         print("Operating on image " + str(i) + " of " + str(len(list_dicom)))
         print("Breast density is: ")
         print(description.breast_density[i])
@@ -66,17 +90,16 @@ def dicom_resize(path, dimension) -> np.ndarray:
         
     # -------------------------------------- # 
     
-    return ArrayDicom
+    return 1
     
 # =========================================================================== #
 
-pathName = "/Users/srujanvajram/Documents/Internship related/UCSF/CBIS-DDSM-Train"
-dimension = 299
+# Example use: 
+# pathName = "/Users/srujanvajram/Documents/Internship related/UCSF/CBIS-DDSM-Train"
+# dimension = 299
+# savedir = 'saved_numpy_files'
 
-dicom_resize(pathName,dimension)
+# dicom_resize(pathName,dimension,savedir)
             
             
-        
-        
-    
-   
+       
