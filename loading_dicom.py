@@ -5,6 +5,8 @@ Created on Mon Sep 21 17:18:41 2020
 
 @author: srujanvajram
 """
+# =========================================================================== #
+# Import relevant packages 
 
 import pydicom 
 import os   
@@ -14,43 +16,41 @@ from skimage.transform import resize
 from matplotlib import pyplot as plt
 from math import sqrt
 
+# Load CSV data of DICOM images 
 description = pd.read_csv("Mass-Training-Description.csv") 
 
 # =========================================================================== #
+# Define a function to resize images
+
 def dicom_resize(path, dimension, savedir) -> int:
     
     # Holds a reference to the directory that stores the DICOM files of interest
     PathDicom = path
     
-     # Will store the DICOM files 
+     # Will hold DICOM files as we encounter them
     list_dicom = []        
     
     # For loop walks through the direcotries and grabs the Dicom files 
     for dirName, subdirList, fileList in os.walk(PathDicom):
         for fileName in fileList:
-            if ".dcm" in fileName:
-                list_dicom.append(os.path.join(dirName,fileName))
+            if ".dcm" in fileName:                                  # If we find a dicom extension 
+                list_dicom.append(os.path.join(dirName,fileName))   # Add it to the list 
     # -------------------------------------- # 
                 
     # Hold a reference to the first DICOM file in the list
     RefD = pydicom.read_file(list_dicom[1])
     
-    # Set the new dimensions 
+    # Calculate the target pixel area for our images  
     IMG_SIZE = dimension
     TARGET_PX_AREA = dimension*dimension
-    
-    # Set new dimensions 
-    #newDims = (IMG_SIZE, IMG_SIZE, len(list_dicom))
-    
-    # Initialize an empty array of zeros based on new dimensions 
-    # ArrayDicom = np.zeros(newDims, dtype=RefD.pixel_array.dtype)
-    
+
     # -------------------------------------- # 
-    # Read each dicom file 
+    # Process each DICOM file from the list we just created
+    
     i = 0
     for file in list_dicom:
         
-        ds = pydicom.read_file(file)
+        ds = pydicom.read_file(file)    # Read the DICOM file
         
         # Grab the rows and columns
         rows = ds.Rows
@@ -82,7 +82,7 @@ def dicom_resize(path, dimension, savedir) -> int:
         # Saves the numpy array to specific folder in directory 
         np.save( os.path.join(savedir, ds.PatientID), resized_image)
         
-        
+        # Print messages describing which image is being processed 
         print("Operating on image " + str(i) + " of " + str(len(list_dicom)))
         print("Breast density is: ")
         print(description.breast_density[i])
@@ -90,16 +90,15 @@ def dicom_resize(path, dimension, savedir) -> int:
         
     # -------------------------------------- # 
     
+    # Return 1 when finished 
     return 1
     
 # =========================================================================== #
 
-# Example use: 
-# pathName = "/Users/srujanvajram/Documents/Internship related/UCSF/CBIS-DDSM-Train"
-# dimension = 299
-# savedir = 'saved_numpy_files'
+Example use: 
+pathName = "/Users/srujanvajram/Documents/Internship related/UCSF/CBIS-DDSM-Train"
+dimension = 499
+savedir = 'saved_numpy_files'   # The filename that we are storing the numpy files to (file should be in the same directory as the .py) 
 
-# dicom_resize(pathName,dimension,savedir)
-            
-            
-       
+dicom_resize(pathName,dimension,savedir)
+# =========================================================================== #
