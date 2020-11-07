@@ -5,8 +5,6 @@ Created on Mon Sep 21 17:18:41 2020
 
 @author: srujanvajram
 """
-# =========================================================================== #
-# Import relevant packages 
 
 import pydicom 
 import os   
@@ -16,41 +14,43 @@ from skimage.transform import resize
 from matplotlib import pyplot as plt
 from math import sqrt
 
-# Load CSV data of DICOM images 
 description = pd.read_csv("Mass-Training-Description.csv") 
 
 # =========================================================================== #
-# Define a function to resize images
-
 def dicom_resize(path, dimension, savedir) -> int:
     
     # Holds a reference to the directory that stores the DICOM files of interest
     PathDicom = path
     
-     # Will hold DICOM files as we encounter them
+     # Will store the DICOM files 
     list_dicom = []        
     
     # For loop walks through the direcotries and grabs the Dicom files 
     for dirName, subdirList, fileList in os.walk(PathDicom):
         for fileName in fileList:
-            if ".dcm" in fileName:                                  # If we find a dicom extension 
-                list_dicom.append(os.path.join(dirName,fileName))   # Add it to the list 
+            if ".dcm" in fileName:
+                list_dicom.append(os.path.join(dirName,fileName))
     # -------------------------------------- # 
                 
     # Hold a reference to the first DICOM file in the list
     RefD = pydicom.read_file(list_dicom[1])
     
-    # Calculate the target pixel area for our images  
+    # Set the new dimensions 
     IMG_SIZE = dimension
     TARGET_PX_AREA = dimension*dimension
-
-    # -------------------------------------- # 
-    # Process each DICOM file from the list we just created
     
+    # Set new dimensions 
+    #newDims = (IMG_SIZE, IMG_SIZE, len(list_dicom))
+    
+    # Initialize an empty array of zeros based on new dimensions 
+    # ArrayDicom = np.zeros(newDims, dtype=RefD.pixel_array.dtype)
+    
+    # -------------------------------------- # 
+    # Read each dicom file 
     i = 0
     for file in list_dicom:
         
-        ds = pydicom.read_file(file)    # Read the DICOM file
+        ds = pydicom.read_file(file)
         
         # Grab the rows and columns
         rows = ds.Rows
@@ -69,20 +69,10 @@ def dicom_resize(path, dimension, savedir) -> int:
         image = ds.pixel_array
         resized_image = resize(image, (newRows, newCols), anti_aliasing=True)
         
-        # Plot the resized image
-        plt.imshow(resized_image)
-        plt.show()
-        
-        # Add a new dimension to the image
-        resized_image = resized_image[:,:, np.newaxis]
-        
-        # Add the breast density information to create a numpyZ file
-        resized_image[:,:,-1] = description.breast_density[i]
-        
         # Saves the numpy array to specific folder in directory 
-        np.save( os.path.join(savedir, ds.PatientID), resized_image)
+        np.savez( os.path.join(savedir, ds.PatientID), resized_image, str(ds.PatientID), int(description.breast_density[i]), str(description.pathology[i]))
         
-        # Print messages describing which image is being processed 
+        # -------------------------------------- # 
         print("Operating on image " + str(i) + " of " + str(len(list_dicom)))
         print("Breast density is: ")
         print(description.breast_density[i])
@@ -90,15 +80,15 @@ def dicom_resize(path, dimension, savedir) -> int:
         
     # -------------------------------------- # 
     
-    # Return 1 when finished 
     return 1
     
 # =========================================================================== #
 
-Example use: 
-pathName = "/Users/srujanvajram/Documents/Internship related/UCSF/CBIS-DDSM-Train"
-dimension = 499
-savedir = 'saved_numpy_files'   # The filename that we are storing the numpy files to (file should be in the same directory as the .py) 
+pathName = "/Users/srujanvajram/Documents/Internship related/UCSF/DICOM/CBIS-DDSM-Train"
+dimension = 300
+savedir = 'saved_numpy_files'
 
 dicom_resize(pathName,dimension,savedir)
-# =========================================================================== #
+            
+            
+       
